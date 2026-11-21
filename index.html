@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Raga Buddy · Have fun finding ragas!</title>
+<title>Raga Buddy · Have fun playing with the swaras!</title>
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 <main class="shell">
   <header>
-    <div><p class="eyebrow">Play around in the Carnatic Music Realm</p><h1>Raga <span>Buddy</span></h1></div>
+    <div><p class="eyebrow">Carnatic Raga Identifier</p><h1>Raga <span>Buddy</span></h1></div>
     <button class="strong" id="sound" type="button">Play</button>
   </header>
 
@@ -59,15 +59,31 @@
         <h2 id="finder-title">Raga finder</h2>
         <button id="clear" type="button">Clear</button>
       </div>
-      <p class="hint">Select swaras in any order. Sa and upper Sa count as one pitch class. <span id="index-note" hidden>The finder searches <span id="index-count"></span> Carnatic raga names.</span></p>
-      <div class="chips" id="chosen" aria-label="Selected pitch classes"></div>
+      <div class="seg finder-modes" id="finder-modes" role="group" aria-label="Raga finder input">
+        <button type="button" data-mode="pitches" aria-pressed="true">Pitch set</button>
+        <button type="button" data-mode="sequences" aria-pressed="false">Scale sequences</button>
+      </div>
+      <div id="pitch-picker">
+        <p class="hint">Select swaras in any order. Sa and upper Sa count as one pitch class.</p>
+        <div class="chips" id="chosen" aria-label="Selected pitch classes"></div>
+      </div>
+      <div id="sequence-picker" hidden>
+        <p class="hint">Choose a direction, then add swaras in order here, from the orbit, or with your keyboard. Tap again to repeat a swara.</p>
+        <div class="sequence-rows" id="sequence-rows"></div>
+        <div class="sequence-key-header">
+          <label>Swara octave <select id="sequence-register"><option value="-12">Lower</option><option value="0" selected>Middle</option><option value="12">Upper</option></select></label>
+          <p class="hint">Ṡ (<kbd>0</kbd>) always plays upper Sa.</p>
+        </div>
+        <div class="sequence-keys" id="sequence-keys" role="group" aria-label="Add a swara to the active sequence"></div>
+      </div>
       <div class="controls">
         <button id="play-selection" type="button" disabled>Play selection</button>
         <button id="stop" type="button" disabled>Stop playback</button>
       </div>
+      <p class="hint" id="index-note" hidden>The finder searches <span id="index-count"></span> Carnatic raga names.</p>
       <div class="match-filters">
         <label>Catalogue <select id="match-scope"><option value="all">All ragas</option><option value="mela">Melakarta</option><option value="janya">Janya</option><option value="history">Historical readings</option></select></label>
-        <label>Match <select id="match-mode"><option value="contains">Exact and partial</option><option value="exact">Exact pitch sets</option></select></label>
+        <label id="pitch-match-filter">Match <select id="match-mode"><option value="contains">Exact and partial</option><option value="exact">Exact pitch sets</option></select></label>
       </div>
       <p id="match-status" class="status" role="status"></p>
       <div id="results" class="result-list" aria-label="Matching ragas"></div>
@@ -92,7 +108,7 @@
     </details>
   </section>
   <footer class="hint">
-    The finder compares swara sets. Ragas can share the same notes and differ in melodic phrasing or gamakas.
+    Ragas can share a pitch set or even both scale sequences. Characteristic phrases and gamakas also help identify a raga.
     <a href="https://lakshpro.com/vocal-studio/melakarta-ragas" target="_blank" rel="noopener">Scale reference</a>
     · <a href="https://mtg.upf.edu/node/2919" target="_blank" rel="noopener">Carnatic intonation research</a>
     <details class="source-notes">
@@ -127,6 +143,9 @@ const voice = get("voice"), ornament = get("ornament"), drone = get("drone");
 const dial = get("dial");
 const chosen = new Set();
 const dropButtons = [], keyButtons = [];
+const sequences = {ascent:[],descent:[]};
+const sequenceRows = {};
+let finderMode = "pitches", sequenceDirection = "ascent";
 let lastNote = 0;
 let layout = "orbit";
 let audio, master, leadBus, sequenceBus, droneBus;
@@ -423,13 +442,14 @@ function drawBackdrop(width) {
   ctx.fillRect(0,0,width,width);
 }
 function drawSelection(width) {
-  if (chosen.size < 2) return;
+  const ids = finderMode === "sequences" ? sequences[sequenceDirection].map(displayNoteId) : [...chosen].sort((a,b) => a-b);
+  if (ids.length < 2) return;
   const ctx = sceneContext;
-  const points = [...chosen].sort((a,b) => a-b).map(id => notePositions[id]);
+  const points = ids.map(id => notePositions[id]);
   ctx.save();
   ctx.beginPath();
   points.forEach(({x,y},i) => i ? ctx.lineTo(x*width,y*width) : ctx.moveTo(x*width,y*width));
-  if (points.length > 2) ctx.closePath();
+  if (finderMode === "pitches" && points.length > 2) ctx.closePath();
   ctx.lineWidth = 1;
   ctx.strokeStyle = layout === "orbit" ? "#e0c1ff68" : "#9affed79";
   ctx.setLineDash([3,5]);
@@ -631,7 +651,10 @@ function activate(id,toggle) {
   stopPlayback();
   if (toggle) {
     loadedRaga = null;
-    if (chosen.has(id)) chosen.delete(id);
+    if (finderMode === "sequences") {
+      id = id === 12 ? 12 : id+Number(get("sequence-register").value);
+      sequences[sequenceDirection].push(id);
+    } else if (chosen.has(id)) chosen.delete(id);
     else chosen.add(id);
     renderSelection();
   }
@@ -674,6 +697,7 @@ function makeForm(parent,up,down,extra,source,detail) {
   return {
     parent, ascent, descent, optional, source, detail, spellings, pitches,
     allowed: new Set([...pitches,...optionalPitches]),
+    ascentPitches:ascent.map(offset), descentPitches:descent.map(offset),
   };
 }
 const buildMelaForm = raga => {
@@ -731,12 +755,21 @@ async function loadRagaData() {
   renderCatalogue();
 }
 
+function sameSequence(input, reference) {
+  return input.length === reference.length && input.every((pitch,index) => pitch === reference[index]);
+}
 function findMatches(pitches,scope,exactOnly) {
   const matches = [];
   const selected = [...pitches];
   for (const raga of ragas) {
     if (scope !== "all" && scope !== raga.type) continue;
     raga.forms.forEach((form,index) => {
+      if (finderMode === "sequences") {
+        if (sameSequence(sequences.ascent,form.ascentPitches) && sameSequence(sequences.descent,form.descentPitches)) {
+          matches.push({raga,form,index,missing:[]});
+        }
+        return;
+      }
       if (!selected.every(id => form.allowed.has(id))) return;
       const missing = form.pitches.filter(id => !pitches.has(id));
       if (!exactOnly || !missing.length) matches.push({raga,form,index,missing});
@@ -751,6 +784,69 @@ function textElement(tag,text,cssClass) {
   node.textContent = text;
   if (cssClass) node.className = cssClass;
   return node;
+}
+function actionButton(label, action) {
+  const button = textElement("button",label);
+  button.type = "button";
+  button.addEventListener("click",action);
+  return button;
+}
+function sequenceNoteLabel(id) {
+  if (id === 12) return "Ṡ";
+  return notes[pitchClass(id)].label+(id < 0 ? "↓" : id > 12 ? "′" : "");
+}
+function setupSequencePicker() {
+  for (const [direction,label] of [["ascent","Ārohaṇam ↑"],["descent","Avarohaṇam ↓"]]) {
+    const row = document.createElement("div");
+    row.className = "sequence-row";
+    const heading = document.createElement("div");
+    heading.className = "sequence-row-header";
+    const select = actionButton(label,() => {
+      sequenceDirection = direction;
+      renderSequenceRows();
+      renderInstrumentSelection();
+      requestScene();
+    });
+    select.setAttribute("aria-label",direction === "ascent" ? "Edit ascending sequence" : "Edit descending sequence");
+    const undo = actionButton("Undo",() => {
+      stopPlayback();
+      loadedRaga = null;
+      sequences[direction].pop();
+      renderSelection();
+    });
+    undo.setAttribute("aria-label",direction === "ascent" ? "Undo last ascending swara" : "Undo last descending swara");
+    const play = actionButton("Play",() => playSequence(sequences[direction]));
+    play.setAttribute("aria-label",direction === "ascent" ? "Play ascending sequence" : "Play descending sequence");
+    const chips = textElement("div","","chips sequence-chips");
+    chips.setAttribute("aria-label",direction === "ascent" ? "Ascending swaras" : "Descending swaras");
+    heading.append(select,undo,play);
+    row.append(heading,chips);
+    get("sequence-rows").append(row);
+    sequenceRows[direction] = {row,select,undo,play,chips};
+  }
+  notes.forEach(({label,name},id) => {
+    const button = actionButton(label,() => activate(id,true));
+    button.setAttribute("aria-label","Add "+name);
+    get("sequence-keys").append(button);
+  });
+  get("finder-modes").addEventListener("click",event => {
+    const mode = event.target.closest("button")?.dataset.mode;
+    if (!mode || mode === finderMode) return;
+    stopPlayback();
+    finderMode = mode;
+    loadedRaga = null;
+    renderSelection();
+  });
+}
+function renderSequenceRows() {
+  for (const [direction,sequence] of Object.entries(sequences)) {
+    const {row,select,undo,play,chips} = sequenceRows[direction];
+    const active = direction === sequenceDirection;
+    row.classList.toggle("active",active);
+    select.setAttribute("aria-pressed",String(active));
+    undo.disabled = play.disabled = !sequence.length;
+    chips.replaceChildren(...(sequence.length ? sequence.map(id => textElement("span",sequenceNoteLabel(id))) : [textElement("p","Tap swaras to begin.","sequence-empty")]));
+  }
 }
 function labelledName(node,raga) {
   if (raga.number) node.append(textElement("span",String(raga.number).padStart(2,"0"),"raga-number"));
@@ -778,7 +874,8 @@ function resultCard(raga,form,index,missing) {
     (raga.type === "history" ? "Historical reading" : "Janya") +
     (parent ? " · Listed under "+parent.number+" "+parent.name : "");
   card.append(title,textElement("p",category+(raga.forms.length > 1 ? " · Form "+(index+1)+" of "+raga.forms.length : ""),"hint"));
-  const label = missing.length ? "Partial match · Add "+missing.map(id => prettyToken(form.spellings.get(id))).join("  ") : "Exact pitch-set match";
+  const label = missing.length ? "Partial match · Add "+missing.map(id => prettyToken(form.spellings.get(id))).join("  ") :
+    finderMode === "sequences" ? "Exact scale-sequence match" : "Exact pitch-set match";
   card.append(textElement("p",label,"hint match-kind"));
   card.append(textElement("p","Ārohaṇam ↑  "+form.ascent.map(prettyToken).join("  "),"scale"),
     textElement("p","Avarohaṇam ↓  "+form.descent.map(prettyToken).join("  "),"scale"));
@@ -792,7 +889,7 @@ function resultCard(raga,form,index,missing) {
     button.addEventListener("click", () => playSequence(sequence.map(offset)));
     controls.append(button);
   }
-  const load = textElement("button","Load swaras");
+  const load = textElement("button",finderMode === "sequences" ? "Load sequences" : "Load swaras");
   load.type = "button";
   load.addEventListener("click", () => loadScale(raga,form));
   controls.append(load);
@@ -802,25 +899,52 @@ function resultCard(raga,form,index,missing) {
 function loadScale(raga,form) {
   stopPlayback();
   loadedRaga = raga;
-  chosen.clear();
-  form.pitches.forEach(id => chosen.add(id));
-  if ([...form.ascent,...form.descent].includes("S'")) chosen.add(12);
+  if (finderMode === "sequences") {
+    sequences.ascent = [...form.ascentPitches];
+    sequences.descent = [...form.descentPitches];
+    sequenceDirection = "ascent";
+    get("sequence-register").value = "0";
+  } else {
+    chosen.clear();
+    form.pitches.forEach(id => chosen.add(id));
+    if ([...form.ascent,...form.descent].includes("S'")) chosen.add(12);
+  }
   renderSelection();
   get("match-status").scrollIntoView({block:"nearest"});
 }
-function renderSelection() {
+function renderInstrumentSelection() {
+  const selected = finderMode === "sequences" ? new Set(sequences[sequenceDirection].map(displayNoteId)) : chosen;
   dropButtons.forEach((button,id) => {
-    const selected = String(chosen.has(id));
-    button.setAttribute("aria-pressed",selected);
-    keyButtons[id].setAttribute("aria-pressed",selected);
+    if (finderMode === "sequences") {
+      button.removeAttribute("aria-pressed");
+      keyButtons[id].removeAttribute("aria-pressed");
+    } else {
+      button.setAttribute("aria-pressed",String(selected.has(id)));
+      keyButtons[id].setAttribute("aria-pressed",String(selected.has(id)));
+    }
+    button.classList.toggle("in-sequence",finderMode === "sequences" && selected.has(id));
+    keyButtons[id].classList.toggle("in-sequence",finderMode === "sequences" && selected.has(id));
   });
+}
+function renderSelection() {
+  renderInstrumentSelection();
+  const sequenceMode = finderMode === "sequences";
+  for (const button of get("finder-modes").querySelectorAll("button")) {
+    button.setAttribute("aria-pressed",String(button.dataset.mode === finderMode));
+  }
+  get("pitch-picker").hidden = sequenceMode;
+  get("pitch-match-filter").hidden = sequenceMode;
+  get("sequence-picker").hidden = !sequenceMode;
+  renderSequenceRows();
   const chips = [...selectedPitches()].sort((a,b) => a-b).map(id => {
     const label = id === 0 && chosen.has(12) ? (chosen.has(0) ? "S / Ṡ" : "Ṡ") : notes[id].label;
     return textElement("span",label);
   });
   get("chosen").replaceChildren(...chips);
-  get("clear").disabled = !chosen.size;
-  get("play-selection").disabled = !chosen.size;
+  get("clear").disabled = sequenceMode ? !sequences.ascent.length && !sequences.descent.length : !chosen.size;
+  const play = get("play-selection");
+  play.textContent = sequenceMode ? "Play both directions" : "Play selection";
+  play.disabled = sequenceMode ? !sequences.ascent.length || !sequences.descent.length : !chosen.size;
   matchPage = 0;
   renderMatches();
   requestScene();
@@ -842,11 +966,15 @@ function renderMatches() {
     return;
   }
   const pitches = selectedPitches();
+  const sequenceMode = finderMode === "sequences";
+  const ready = sequenceMode ? sequences.ascent.length && sequences.descent.length : pitches.size;
   const mode = get("match-mode").value;
-  const matches = pitches.size ? findMatches(pitches,get("match-scope").value,mode === "exact") : [];
+  const matches = ready ? findMatches(pitches,get("match-scope").value,mode === "exact") : [];
   const exact = new Set(matches.filter(match => !match.missing.length).map(match => match.raga)).size;
   const names = new Set(matches.map(match => match.raga)).size;
-  if (!pitches.size) status.textContent = "Select a swara to find matching ragas.";
+  if (sequenceMode && !ready) status.textContent = "Add swaras to both directions to find a match.";
+  else if (sequenceMode && !matches.length) status.textContent = "No stored scale matches both sequences in this catalogue.";
+  else if (!ready) status.textContent = "Select a swara to find matching ragas.";
   else if (!matches.length) status.textContent = mode === "exact" ? "No exact match in this view." : "No raga in this view contains every selected pitch.";
   else {
     const counts = countFormat.format(names)+" matching "+(names === 1 ? "raga" : "ragas")+" · "+countFormat.format(exact)+" exact";
@@ -982,10 +1110,21 @@ get("sound").addEventListener("click", () => activate(lastNote,false));
 get("clear").addEventListener("click", () => {
   stopPlayback();
   loadedRaga = null;
-  chosen.clear();
+  if (finderMode === "sequences") {
+    sequences.ascent = [];
+    sequences.descent = [];
+    sequenceDirection = "ascent";
+    get("sequence-register").value = "0";
+  } else chosen.clear();
   renderSelection();
 });
-get("play-selection").addEventListener("click",() => playSequence([...chosen].sort((a,b) => a-b)));
+get("play-selection").addEventListener("click",() => {
+  if (finderMode === "pitches") {
+    playSequence([...chosen].sort((a,b) => a-b));
+    return;
+  }
+  playSequence([...sequences.ascent,...sequences.descent]);
+});
 get("stop").addEventListener("click",stopPlayback);
 get("filter").addEventListener("input",renderCatalogue);
 for (const id of ["match-scope","match-mode"]) {
@@ -997,6 +1136,7 @@ for (const id of ["match-scope","match-mode"]) {
 get("match-prev").addEventListener("click",() => { matchPage--; renderMatches(); });
 get("match-next").addEventListener("click",() => { matchPage++; renderMatches(); });
 setupScene();
+setupSequencePicker();
 refreshPitch();
 renderSelection();
 renderCatalogue();
