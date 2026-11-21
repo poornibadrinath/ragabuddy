@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Raga Buddy · Carnatic Swara Instrument</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main class="shell">
+  <header>
+    <div><p class="eyebrow">Carnatic swara instrument</p><h1>Raga <span>Buddy</span></h1></div>
+    <button class="strong" id="sound" type="button">Start sound</button>
+  </header>
+
+  <section class="panel strip" aria-label="Sound and tuning">
+    <div class="controls">
+      <label>Tonic (Sa)<select id="tonic"></select></label>
+      <label>Sa octave<select id="octave"></select></label>
+      <label>Fine tune (¢)<input id="fine" type="number" min="-50" max="50" step="1" value="0"></label>
+      <label>Tuning<select id="tuning"><option value="ji">Just intonation</option><option value="et">Equal temperament</option></select></label>
+      <label>Voice<select id="voice"><option value="vocal">Vocal synth</option><option value="veena">Veena-like pluck</option></select></label>
+      <label>Ornament<select id="ornament"><option value="straight">Straight</option><option value="slide">Slide</option><option value="oscillation">Oscillation</option></select></label>
+      <label>Tanpura<select id="drone"><option value="pa">Sa–Pa</option><option value="ma">Sa–Ma</option><option value="off">Off</option></select></label>
+    </div>
+    <p class="hint">Sa <output id="sa-frequency"></output>. Just intonation uses fixed ratios from Sa. Slide and oscillation are practice effects. Raga intonation and gamakas vary with the phrase.</p>
+    <p class="hint" id="audio-message" role="status" hidden></p>
+  </section>
+
+  <div class="workbench">
+    <section class="panel instrument" aria-labelledby="instrument-title">
+      <div class="heading">
+        <h2 id="instrument-title">Swara instrument</h2>
+        <div class="scene-controls">
+          <div class="seg" role="group" aria-label="Swara view">
+            <button id="orbit" type="button" aria-pressed="true">Solar system</button>
+            <button id="circle" type="button" aria-pressed="false">Water droplets</button>
+          </div>
+          <button id="orbit-motion" type="button" aria-controls="swara-stage">Pause orbit</button>
+        </div>
+      </div>
+      <div class="stage" id="swara-stage" data-layout="orbit">
+        <div class="dial" id="dial">
+          <canvas id="swara-scene" aria-hidden="true"></canvas>
+          <div class="pool" id="swara-core" aria-hidden="true"><strong id="current-swara">Sa</strong><span id="current-pitch"></span><span id="current-hz"></span></div>
+          <div id="drops" role="group" aria-label="Playable swaras"></div>
+        </div>
+      </div>
+      <canvas id="pitch-graph" role="img" aria-label="Recent played pitches by octave"></canvas>
+      <div class="keyboard" id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+      <p class="hint"><kbd>S R G M P D N</kbd> primary · <kbd>1–5</kbd> variants · <kbd>0</kbd> upper Sa</p>
+      <p class="hint"><kbd>← →</kbd> step through pitches · <kbd>↑ ↓</kbd> or <kbd>[ ]</kbd> change octave · <kbd>Shift</kbd> cycles A, A♯, C♯, G♯ · <kbd>Space</kbd> replays</p>
+      <p class="hint" id="note-message" aria-live="polite"></p>
+    </section>
+
+    <section class="panel finder" aria-labelledby="finder-title">
+      <div class="heading">
+        <h2 id="finder-title">Raga finder</h2>
+        <button id="clear" type="button">Clear</button>
+      </div>
+      <p class="hint">Select swaras in any order. Sa and upper Sa count as one pitch class. <span id="index-note" hidden>The finder searches <span id="index-count"></span> Carnatic raga names.</span></p>
+      <div class="chips" id="chosen" aria-label="Selected pitch classes"></div>
+      <div class="controls">
+        <button id="play-selection" type="button" disabled>Play selection</button>
+        <button id="stop" type="button" disabled>Stop playback</button>
+      </div>
+      <div class="match-filters">
+        <label>Catalogue <select id="match-scope"><option value="all">All ragas</option><option value="mela">Melakarta</option><option value="janya">Janya</option><option value="history">Historical readings</option></select></label>
+        <label>Match <select id="match-mode"><option value="contains">Exact and partial</option><option value="exact">Exact pitch sets</option></select></label>
+      </div>
+      <p id="match-status" class="status" role="status"></p>
+      <div id="results" class="result-list" aria-label="Matching ragas"></div>
+      <div class="pager" id="match-pager" hidden>
+        <button id="match-prev" type="button">‹ Previous</button>
+        <span id="match-page"></span>
+        <button id="match-next" type="button">Next ›</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel library" aria-labelledby="library-title">
+    <h2 id="library-title">Melakarta database</h2>
+    <details id="database" open>
+      <summary>Browse the 72 Melakartas</summary>
+      <div class="heading">
+        <label class="hint" for="filter">Search the 72 Melakartas by number, name or chakra</label>
+        <input id="filter" type="search" disabled autocomplete="off" placeholder="e.g. 29, Kalyani, Rudra">
+      </div>
+      <p id="catalogue-status" class="hint" role="status"></p>
+      <div id="catalogue"></div>
+    </details>
+  </section>
+  <footer class="hint">
+    The finder compares swara sets. Ragas can share the same notes and differ in melodic phrasing or gamakas.
+    <a href="https://lakshpro.com/vocal-studio/melakarta-ragas" target="_blank" rel="noopener">Scale reference</a>
+    · <a href="https://mtg.upf.edu/node/2919" target="_blank" rel="noopener">Carnatic intonation research</a>
+    <details class="source-notes">
+      <summary>Catalogue sources and notation</summary>
+      <p>Janya names and scales are adapted from <a href="https://en.wikipedia.org/wiki/List_of_Janya_ragas">Wikipedia contributors</a> (<a href="https://en.wikipedia.org/w/index.php?title=List_of_Janya_ragas&amp;action=history">revision history</a>, <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>). The adapted Wikipedia data retain this license. Names, swara notation, octave markers and variants were normalized for playback and searching. The Hamir Kalyani entry includes the teaching form documented by <a href="https://ragasurabhi.com/carnatic-music/raga/raga--hamir-kalyani.html">Raga Surabhi</a>.</p>
+      <p>Historical readings come from D. Pattammal and M. N. Dhandapani’s <a href="https://www.dpattammal.com/raga-pravagam.php">Raga Pravaham</a>. The app uses the pitch variants of the source’s parent Melakarta and interprets the endpoint Sa in the upper octave. Each entry links to its source page and reference code. These readings cover straightforward, legible rows. Notation and parent assignments can vary across sources and traditions.</p>
+    </details>
+  </footer>
+</main>
+
+<script>
+"use strict";
+
+// Pitch positions are relative to Sa. Alternate spellings share a position.
+const notes = [
+  ["Sa", "S", "s"], ["Ri₁", "R₁", "1"], ["Ri₂ / Ga₁", "R₂/G₁", "r"],
+  ["Ri₃ / Ga₂", "R₃/G₂", "2"], ["Ga₃", "G₃", "g"], ["Ma₁", "M₁", "m"],
+  ["Ma₂", "M₂", "3"], ["Pa", "P", "p"], ["Dha₁", "D₁", "4"],
+  ["Dha₂ / Ni₁", "D₂/N₁", "d"], ["Dha₃ / Ni₂", "D₃/N₂", "5"],
+  ["Ni₃", "N₃", "n"], ["Upper Sa", "Ṡ", "0"],
+].map(([name, label, key]) => ({name, label, key, extra: /^\d$/.test(key) && key !== "0"}));
+
+const chromatic = ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"];
+const practiceRatios = [1,16/15,9/8,6/5,5/4,4/3,45/32,3/2,8/5,5/3,9/5,15/8,2];
+const tonicCycle = [9,10,1,8];
+const keyboardOrder = [0,2,4,5,7,9,11,12,1,3,6,8,10];
+const subscript = text => text.replace(/[123]/g, digit => "₁₂₃"[Number(digit)-1]);
+
+const get = id => document.getElementById(id);
+const tonic = get("tonic"), octave = get("octave"), fine = get("fine"), tuning = get("tuning");
+const voice = get("voice"), ornament = get("ornament"), drone = get("drone");
+const dial = get("dial");
+const chosen = new Set();
+const dropButtons = [], keyButtons = [];
+let lastNote = 0;
+let layout = "orbit";
+let audio, master, leadBus, sequenceBus, droneBus;
+let droneClock, playbackClock, playbackVersion = 0;
+let nextPluck = 0, stringIndex = 0;
+let previousGlow, glowTimer;
+const graph = get("pitch-graph");
+const pitchHistory = [];
+
+function addOption(select, label, value) {
+  select.add(new Option(label, value));
+}
+chromatic.forEach((name, index) => addOption(tonic, name, index));
+for (let i = 0; i <= 8; i++) addOption(octave, String(i), i);
+tonic.value = "0";
+octave.value = "4";
+
+function saFrequency() {
+  const midi = (Number(octave.value)+1)*12 + Number(tonic.value);
+  const adjustment = Math.max(-50, Math.min(50, Number(fine.value) || 0));
+  return 440 * 2 ** ((midi-69+adjustment/100)/12);
+}
+function noteFrequency(id) {
+  return saFrequency() * (tuning.value === "ji" ? practiceRatios[pitchClass(id)] * 2 ** Math.floor(id/12) : 2 ** (id/12));
+}
+function pitchName(id) {
+  const absolute = Number(tonic.value)+id;
+  const pitch = chromatic[pitchClass(absolute)] + (Number(octave.value)+Math.floor(absolute/12));
+  return Number(tonic.value) === 0 && id === 12 ? pitch + " (B♯ equivalent)" : pitch;
+}
+function showPitch(id) {
+  const frequency = noteFrequency(id).toFixed(2) + " Hz";
+  const note = notes[displayNoteId(id)];
+  const register = id < 0 ? " ↓" : id > 12 ? " ↑" : "";
+  get("current-swara").textContent = note.label + register;
+  get("current-pitch").textContent = pitchName(id).split(" ")[0];
+  get("current-hz").textContent = frequency;
+  get("note-message").textContent = note.name + register + " · " + pitchName(id) + " · " + frequency;
+}
+function refreshPitch() {
+  get("sa-frequency").textContent = saFrequency().toFixed(2) + " Hz";
+  showPitch(lastNote);
+  dropButtons.forEach((button, id) => {
+    button.title = notes[id].name + " · " + pitchName(id) + " · " + notes[id].key.toUpperCase();
+  });
+}
+
+// A logarithmic pitch axis gives each octave the same height.
+function drawPitchGraph() {
+  const {width,height} = graph.getBoundingClientRect();
+  if (!width || !height) return;
+  const ratio = window.devicePixelRatio || 1;
+  graph.width = Math.round(width*ratio);
+  graph.height = Math.round(height*ratio);
+  const ctx = graph.getContext("2d");
+  ctx.scale(ratio,ratio);
+  const left = 37, right = width-12, top = 12, bottom = height-12;
+  const position = octaves => bottom-(octaves+.08)/10.16*(bottom-top);
+  ctx.font = "10px system-ui";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#a3afc6";
+  ctx.strokeStyle = "#293349";
+  for (let octaveLine = 0; octaveLine <= 10; octaveLine += 2) {
+    const y = position(octaveLine);
+    ctx.fillText("C"+octaveLine,10,y);
+    ctx.beginPath();
+    ctx.moveTo(left,y);
+    ctx.lineTo(right,y);
+    ctx.stroke();
+  }
+  if (!pitchHistory.length) return;
+  const points = pitchHistory.map((pitch,index) => [right-(pitchHistory.length-1-index)*(right-left)/19,position(pitch)]);
+  ctx.strokeStyle = "#8bdadf";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  points.forEach(([x,y],index) => index === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y));
+  ctx.stroke();
+  const [x,y] = points.at(-1);
+  ctx.fillStyle = "#c4fffa";
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = "#54ecfa";
+  ctx.beginPath();
+  ctx.arc(x,y,3.2,0,Math.PI*2);
+  ctx.fill();
+}
+function recordPitch(id) {
+  pitchHistory.push(Math.log2(noteFrequency(id)/(440*2**(-57/12))));
+  if (pitchHistory.length > 20) pitchHistory.shift();
+  drawPitchGraph();
+}
+
+// Additive synthesis. The vocal patch uses vowel-like spectral peaks.
+// The veena and tanpura patches use damped partials, imitating plucked strings.
+function connectBus(destination, level) {
+  const gain = audio.createGain();
+  gain.gain.value = level;
+  gain.connect(destination);
+  return gain;
+}
+async function startAudio() {
+  try {
+    if (!audio) {
+      const Context = window.AudioContext || window.webkitAudioContext;
+      if (!Context) throw new Error("Web Audio unavailable");
+      audio = new Context();
+      const compressor = audio.createDynamicsCompressor();
+      compressor.threshold.value = -15;
+      compressor.connect(audio.destination);
+      master = connectBus(compressor, .66);
+      leadBus = connectBus(master, 1);
+    }
+    if (audio.state !== "running") await audio.resume();
+    if (audio.state !== "running") return false;
+    get("sound").hidden = true;
+    get("audio-message").hidden = true;
+    if (!droneBus && drone.value !== "off") restartDrone();
+    return true;
+  } catch (error) {
+    get("audio-message").hidden = false;
+    get("audio-message").textContent = "Sound could not start. Click Start sound to try again.";
+    return false;
+  }
+}
+function partial(bus, hz, level, time, attack, duration, shape = []) {
+  if (hz >= audio.sampleRate * .45) return;
+  const tone = audio.createOscillator();
+  const envelope = audio.createGain();
+  tone.frequency.value = hz;
+  shape.forEach(([offset, cents], index) => {
+    if (index === 0) tone.detune.setValueAtTime(cents, time+offset);
+    else tone.detune.linearRampToValueAtTime(cents, time+offset);
+  });
+  envelope.gain.setValueAtTime(.00001, time);
+  envelope.gain.exponentialRampToValueAtTime(Math.max(.00002, level), time+attack);
+  envelope.gain.exponentialRampToValueAtTime(.00001, time+duration);
+  tone.connect(envelope);
+  envelope.connect(bus);
+  tone.start(time);
+  tone.stop(time+duration+.012);
+  tone.onended = () => { tone.disconnect(); envelope.disconnect(); };
+}
+function playLead(id, bus, time, duration) {
+  const hz = noteFrequency(id);
+  let shape = [];
+  if (![0,7].includes(pitchClass(id))) {
+    if (ornament.value === "slide") shape = [[0,-65],[.13,0]];
+    if (ornament.value === "oscillation") shape = [[0,0],[.10,-42],[.2,24],[.29,-33],[.4,0]];
+  }
+  if (voice.value === "veena") {
+    [1,.47,.29,.2,.14,.085,.09,.055,.033,.03,.019,.012].forEach((weight,index) => {
+      const harmonic = index+1;
+      partial(bus, hz*harmonic, .135*weight, time, .008, duration*(.45 + .55/Math.sqrt(harmonic)), shape);
+    });
+    return;
+  }
+  for (let harmonic = 1; harmonic <= 13; harmonic++) {
+    const h = hz*harmonic;
+    const vowel = Math.exp(-(((h-730)/330)**2)) + .62*Math.exp(-(((h-1250)/370)**2));
+    const level = harmonic === 1 ? .13 : (.034 + .14*vowel)/harmonic;
+    partial(bus,h,level,time,.055,duration,shape);
+  }
+}
+function retireBus(bus) {
+  if (!bus) return;
+  bus.gain.setTargetAtTime(.00001, audio.currentTime, .018);
+  setTimeout(() => bus.disconnect(), 160);
+}
+function droneTick() {
+  let root = saFrequency()/2;
+  while (root < 65) root *= 2;
+  while (root > 155) root /= 2;
+  const interval = drone.value === "ma" ? 5 : 7;
+  const ratio = tuning.value === "ji" ? practiceRatios[interval] : 2 ** (interval/12);
+  const frequencies = [root*ratio, root*2, root*2, root];
+  if (nextPluck < audio.currentTime) nextPluck = audio.currentTime+.015;
+  while (nextPluck < audio.currentTime+.13) {
+    const hz = frequencies[stringIndex];
+    [1,.61,.38,.28,.25,.22,.13,.12,.095,.067,.052,.042,.032,.021].forEach((weight,i) => {
+      const harmonic = i+1;
+      const bridgeSweep = i ? [[0,2],[.17,-1],[.55,0]] : [];
+      partial(droneBus, hz*harmonic, .046*weight, nextPluck,
+        .016 + harmonic*.003, 2.1-harmonic*.055, bridgeSweep);
+    });
+    nextPluck += stringIndex === 3 ? .85 : .53;
+    stringIndex = (stringIndex+1)%frequencies.length;
+  }
+}
+function restartDrone() {
+  clearInterval(droneClock);
+  retireBus(droneBus);
+  droneBus = null;
+  if (audio?.state !== "running" || drone.value === "off") return;
+  droneBus = connectBus(master, .55);
+  stringIndex = 0;
+  nextPluck = audio.currentTime+.028;
+  droneTick();
+  droneClock = setInterval(droneTick, 65);
+}
+
+// The canvas renders the paths and splashes. The swaras themselves are real buttons.
+const sceneCanvas = get("swara-scene");
+const sceneStage = get("swara-stage");
+const sparkPalette = (getComputedStyle(sceneStage).getPropertyValue("--spark-palette").trim() ||
+  "#ff49c1 #34f8ff #d9ff42 #b88cff #ff9952 #fff15c #58ffc1").split(/\s+/);
+const splashDuration = 1000;
+const maxSplashes = 5;
+const sceneContext = sceneCanvas.getContext("2d");
+const core = get("swara-core");
+const motionToggle = get("orbit-motion");
+const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+const solarTracks = [
+  {notes:notes.map((_,id) => id).filter(id => !notes[id].extra), x:.446, y:.382, tilt:-.25, rate:.000071, phase:-1.28, color:"#34f8ff"},
+  {notes:notes.map((_,id) => id).filter(id => notes[id].extra), x:.239, y:.217, tilt:.34, rate:-.000109, phase:-.72, color:"#ff49c1"},
+];
+const waterTrack = {notes:notes.map((_,id) => id), x:.417, y:.417, tilt:0, rate:0, phase:-Math.PI/2};
+const stars = Array.from({length:104},(_,i) => ({
+  x:((i*137.509) % 113)/113, y:((i*83.717) % 107)/107,
+  size:i%17 === 0 ? 1.45 : .45+(i%5)*.1, opacity:.24+(i%7)*.08
+}));
+const notePositions = [];
+const splashes = [];
+let orbitTime = 0;
+let lastFrameTime = null;
+let frameRequest = null;
+let sceneVisible = true;
+let sceneWidth = 0;
+let scenePixelRatio = 1;
+let orbitsPaused = motionPreference.matches;
+let pulseTimer;
+
+function trackPoint(track,angle) {
+  const x = track.x*Math.cos(angle);
+  const y = track.y*Math.sin(angle);
+  return {
+    x:.5+x*Math.cos(track.tilt)-y*Math.sin(track.tilt),
+    y:.5+x*Math.sin(track.tilt)+y*Math.cos(track.tilt)
+  };
+}
+function placeDrops() {
+  const tracks = layout === "orbit" ? solarTracks : [waterTrack];
+  for (const track of tracks) {
+    track.notes.forEach((id,index) => {
+      const position = trackPoint(track,track.phase+orbitTime*track.rate+index/track.notes.length*Math.PI*2);
+      notePositions[id] = position;
+      dropButtons[id].style.setProperty("--x", position.x*100+"%");
+      dropButtons[id].style.setProperty("--y", position.y*100+"%");
+    });
+  }
+}
+function drawRing(cx,cy,rx,ry,tilt,color,width=1) {
+  const ctx = sceneContext;
+  ctx.beginPath();
+  ctx.ellipse(cx,cy,rx,ry,tilt,0,Math.PI*2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke();
+}
+function drawBackdrop(width) {
+  const ctx = sceneContext;
+  const centre = width/2;
+  if (layout === "orbit") {
+    for (const star of stars) {
+      ctx.globalAlpha = star.opacity;
+      ctx.fillStyle = star.size > 1 ? "#fff1d3" : "#a8d5ff";
+      ctx.beginPath();
+      ctx.arc(star.x*width,star.y*width,star.size,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    drawRing(centre,centre,width*.465,width*.295,-.49,"#ff4bbf26");
+    drawRing(centre,centre,width*.47,width*.344,.36,"#d9ff4226");
+    for (const track of solarTracks) {
+      drawRing(centre,centre,track.x*width,track.y*width,track.tilt,track.color+"55");
+      const angle = track.phase+orbitTime*track.rate+.52;
+      const satellite = trackPoint(track,angle);
+      ctx.shadowColor = track.color;
+      ctx.shadowBlur = 9;
+      ctx.fillStyle = track.color;
+      ctx.beginPath();
+      ctx.arc(satellite.x*width,satellite.y*width,2.05,0,Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    return;
+  }
+  for (const [radius,color] of [[.16,"#8bfce321"],[.245,"#87ddf129"],[.33,"#8bfce33b"],[.417,"#8bfce362"],[.47,"#a6f8f123"]]) {
+    drawRing(centre,centre,width*radius,width*radius,0,color);
+  }
+  const glow = ctx.createRadialGradient(centre,centre,0,centre,centre,width*.49);
+  glow.addColorStop(0,"#95eee930");
+  glow.addColorStop(.62,"#6dffc010");
+  glow.addColorStop(1,"#6dffc000");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0,0,width,width);
+}
+function drawSelection(width) {
+  if (chosen.size < 2) return;
+  const ctx = sceneContext;
+  const points = [...chosen].sort((a,b) => a-b).map(id => notePositions[id]);
+  ctx.save();
+  ctx.beginPath();
+  points.forEach(({x,y},i) => i ? ctx.lineTo(x*width,y*width) : ctx.moveTo(x*width,y*width));
+  if (points.length > 2) ctx.closePath();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = layout === "orbit" ? "#e0c1ff68" : "#9affed79";
+  ctx.setLineDash([3,5]);
+  ctx.shadowColor = layout === "orbit" ? "#c29bfc" : "#70f6d0";
+  ctx.shadowBlur = 8;
+  ctx.stroke();
+  ctx.restore();
+}
+// Group dots by colour so each batch needs just one canvas fill per frame.
+function makeSparkGroups(color) {
+  const colors = [color,...sparkPalette.filter(spark => spark !== color)];
+  const groups = colors.map(color => ({color,dots:[]}));
+  const count = sceneWidth < 350 ? 300 : 640;
+  for (let index = 0; index < count; index++) {
+    const angle = Math.random()*Math.PI*2;
+    const distance = .045+Math.random()**1.6*.375;
+    groups[index%groups.length].dots.push({
+      x:Math.cos(angle)*distance,
+      y:Math.sin(angle)*distance,
+      size:.42+Math.random()**1.8*1.6,
+      delay:Math.random()*90,
+      lifetime:430+Math.random()*470,
+    });
+  }
+  return groups;
+}
+function drawSplashes(time,width) {
+  const ctx = sceneContext;
+  for (const splash of splashes) {
+    const age = Math.max(0,time-splash.start);
+    const x = splash.x*width;
+    const y = splash.y*width;
+    ctx.save();
+    ctx.shadowColor = splash.color;
+    ctx.shadowBlur = 8;
+    for (let ring = 0; ring < 3; ring++) {
+      const progress = (age-ring*85)/710;
+      if (progress < 0 || progress >= 1) continue;
+      const radius = 8+width*.21*(1-(1-progress)**2.3);
+      const ringColor = splash.groups[ring%splash.groups.length].color;
+      ctx.globalAlpha = (1-progress)*(.94-ring*.2);
+      drawRing(x,y,radius,radius*(layout === "orbit" ? .82 : 1),-.15,ringColor,ring ? 1 : 2);
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = Math.max(0,1-age/splashDuration)**1.26;
+    for (const group of splash.groups) {
+      ctx.fillStyle = group.color;
+      ctx.beginPath();
+      for (const dot of group.dots) {
+        const progress = (age-dot.delay)/dot.lifetime;
+        if (progress < 0 || progress >= 1) continue;
+        const reach = width*(1-(1-progress)**2.8);
+        const px = x+dot.x*reach;
+        const py = y+dot.y*reach+progress*progress*21;
+        const radius = dot.size*(1-progress*.62);
+        ctx.moveTo(px+radius,py);
+        ctx.arc(px,py,radius,0,Math.PI*2);
+      }
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+function requestScene() {
+  if (frameRequest === null && !document.hidden) frameRequest = requestAnimationFrame(renderScene);
+}
+function renderScene(time) {
+  frameRequest = null;
+  const moving = layout === "orbit" && !orbitsPaused && sceneVisible;
+  if (moving && lastFrameTime !== null) orbitTime += Math.min(48,time-lastFrameTime);
+  lastFrameTime = moving ? time : null;
+  placeDrops();
+  while (splashes.length && time-splashes[0].start >= splashDuration) splashes.shift();
+  if (sceneContext && sceneWidth) {
+    sceneContext.setTransform(scenePixelRatio,0,0,scenePixelRatio,0,0);
+    sceneContext.clearRect(0,0,sceneWidth,sceneWidth);
+    drawBackdrop(sceneWidth);
+    drawSelection(sceneWidth);
+    drawSplashes(time,sceneWidth);
+  }
+  if (moving || splashes.length && sceneVisible) requestScene();
+}
+function resizeScene() {
+  sceneWidth = dial.getBoundingClientRect().width;
+  scenePixelRatio = Math.min(window.devicePixelRatio || 1,2);
+  const size = Math.max(1,Math.round(sceneWidth*scenePixelRatio));
+  if (sceneCanvas.width !== size || sceneCanvas.height !== size) sceneCanvas.width = sceneCanvas.height = size;
+  requestScene();
+}
+function updateMotionControl() {
+  motionToggle.hidden = layout !== "orbit";
+  motionToggle.textContent = orbitsPaused ? "Resume orbit" : "Pause orbit";
+}
+function setupScene() {
+  placeDrops();
+  resizeScene();
+  new ResizeObserver(resizeScene).observe(dial);
+  if (typeof IntersectionObserver === "function") {
+    new IntersectionObserver(([entry]) => {
+      sceneVisible = entry.isIntersecting;
+      lastFrameTime = null;
+      if (sceneVisible) requestScene();
+    }).observe(dial);
+  }
+  document.addEventListener("visibilitychange",() => {
+    lastFrameTime = null;
+    if (!document.hidden) requestScene();
+  });
+  motionPreference.addEventListener("change", ({matches}) => {
+    orbitsPaused = matches;
+    if (matches) splashes.length = 0;
+    updateMotionControl();
+    requestScene();
+  });
+  motionToggle.addEventListener("click", () => {
+    orbitsPaused = !orbitsPaused;
+    lastFrameTime = null;
+    updateMotionControl();
+    requestScene();
+  });
+  for (const mode of ["circle","orbit"]) {
+    get(mode).addEventListener("click", () => {
+      if (layout === mode) return;
+      layout = mode;
+      sceneStage.dataset.layout = mode;
+      lastFrameTime = null;
+      splashes.length = 0;
+      get("circle").setAttribute("aria-pressed",String(mode === "circle"));
+      get("orbit").setAttribute("aria-pressed",String(mode === "orbit"));
+      updateMotionControl();
+      placeDrops();
+      requestScene();
+    });
+  }
+  updateMotionControl();
+}
+function animateDrop(id) {
+  const visibleId = displayNoteId(id);
+  const button = dropButtons[visibleId];
+  const color = getComputedStyle(button).getPropertyValue("--planet").trim() || "#34f8ff";
+  clearTimeout(glowTimer);
+  previousGlow?.classList.remove("sounding");
+  button.classList.add("sounding");
+  previousGlow = button;
+  glowTimer = setTimeout(() => button.classList.remove("sounding"),370);
+  clearTimeout(pulseTimer);
+  sceneStage.style.setProperty("--note-light",color);
+  core.classList.add("pulse");
+  pulseTimer = setTimeout(() => core.classList.remove("pulse"),340);
+  if (sceneContext && sceneVisible && !motionPreference.matches) {
+    if (splashes.length >= maxSplashes) splashes.shift();
+    splashes.push({
+      ...notePositions[visibleId],
+      start:performance.now(),color,
+      groups:makeSparkGroups(color),
+    });
+    requestScene();
+  }
+  recordPitch(id);
+}
+
+function makeNoteButton(id, isDrop) {
+  const {name,label,key,extra} = notes[id];
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = isDrop ? "drop" : "";
+  button.dataset.id = id;
+  button.dataset.extra = extra;
+  button.setAttribute("aria-label", name + ", key " + key.toUpperCase());
+  button.setAttribute("aria-pressed","false");
+  const primary = document.createElement(isDrop ? "strong" : "kbd");
+  const secondary = document.createElement("small");
+  primary.textContent = isDrop ? label : key.toUpperCase();
+  secondary.textContent = isDrop ? key.toUpperCase() : label;
+  button.append(primary,secondary);
+  if (isDrop) button.style.setProperty("--delay",(-.31*id)+"s");
+  button.addEventListener("click", () => activate(id,true));
+  return button;
+}
+notes.forEach((_,id) => {
+  const button = makeNoteButton(id,true);
+  dropButtons[id] = button;
+  get("drops").append(button);
+});
+keyboardOrder.forEach(id => {
+  const button = makeNoteButton(id,false);
+  keyButtons[id] = button;
+  get("keyboard").append(button);
+});
+function audition(id) {
+  lastNote = id;
+  showPitch(id);
+  animateDrop(id);
+  startAudio().then(ready => {
+    if (ready) playLead(id,leadBus,audio.currentTime+.012,.8);
+  });
+}
+function activate(id,toggle) {
+  stopPlayback();
+  if (toggle) {
+    loadedRaga = null;
+    if (chosen.has(id)) chosen.delete(id);
+    else chosen.add(id);
+    renderSelection();
+  }
+  audition(id);
+}
+
+function pitchClass(semitones) {
+  return ((semitones % 12) + 12) % 12;
+}
+function displayNoteId(semitones) {
+  return semitones === 12 ? 12 : pitchClass(semitones);
+}
+function selectedPitches() {
+  return new Set([...chosen].map(pitchClass));
+}
+
+const swaraOffsets = { S:0,R1:1,R2:2,G1:2,R3:3,G2:3,G3:4,M1:5,M2:6,P:7,D1:8,D2:9,N1:9,D3:10,N2:10,N3:11 };
+const wikiSource = "https://en.wikipedia.org/wiki/List_of_Janya_ragas";
+const historySource = "https://www.dpattammal.com/downloads/raga_pravagam-english-full.pdf";
+
+
+function offset(token) {
+  const swara = token.replace(/['~]$/,"");
+  return swaraOffsets[swara] + (token.endsWith("'") ? 12 : token.endsWith("~") ? -12 : 0);
+}
+function scaleTokens(text) {
+  return text ? text.trim().split(/\s+/).filter(Boolean) : [];
+}
+function prettyToken(token) {
+  if (token === "S'") return "Ṡ";
+  return subscript(token.replace(/'$/,"′").replace(/~$/,"↓"));
+}
+function makeForm(parent,up,down,extra,source,detail) {
+  const ascent = scaleTokens(up);
+  const descent = scaleTokens(down);
+  const optional = scaleTokens(extra);
+  const spellings = new Map([...ascent,...descent].map(t => [pitchClass(offset(t)), t.replace(/['~]$/,"")]));
+  const pitches = Array.from(spellings.keys()).sort((a,b) => a-b);
+  const optionalPitches = optional.map(t => pitchClass(offset(t)));
+  return {
+    parent, ascent, descent, optional, source, detail, spellings, pitches,
+    allowed: new Set([...pitches,...optionalPitches]),
+  };
+}
+const buildMelaForm = raga => {
+  const up = [...raga.spelling,"S'"];
+  return makeForm(raga.number,up.join(" "),up.reverse().join(" "),"","mela",null);
+};
+const countFormat = new Intl.NumberFormat("en");
+const matchPageSize = 16;
+const typeOrder = {mela:0,janya:1,history:2};
+let matchPage = 0, loadedRaga = null;
+let melakarta = [];
+let ragas = [];
+let datasetMessage = "Loading the raga dataset…";
+
+async function loadRagaData() {
+  try {
+    const response = await fetch("./ragas.json");
+    if (!response.ok) throw new Error("Could not load ragas.json (HTTP "+response.status+").");
+    const dataset = await response.json();
+
+    const parents = dataset.melakartas.map(({number,name,chakra,swaras,aliases = []}) => {
+      const spelling = scaleTokens(swaras);
+      return {
+        number, name, chakra, spelling,
+        pitches:spelling.map(offset),
+        searchText:[name,chakra,...aliases].join(" ").toLowerCase(),
+      };
+    }).sort((a,b) => a.number-b.number);
+    if (parents.length !== 72 || parents.some((raga,index) =>
+      raga.number !== index+1 || raga.spelling.length !== 7 || raga.pitches.some(pitch => !Number.isInteger(pitch)))) {
+      throw new Error("Invalid Melakarta entries in ragas.json.");
+    }
+
+    const derived = dataset.ragas.map(({name,forms}) => ({
+      name,
+      type:forms[0].source === "pravaham" ? "history" : "janya",
+      forms:forms.map(({melakarta,ascent,descent,optionalSwaras,source,sourceDetail}) =>
+        makeForm(melakarta,ascent,descent,optionalSwaras,source,sourceDetail)
+      ),
+    }));
+
+    melakarta = parents;
+    ragas = [...parents.map(raga => ({...raga,type:"mela",forms:[buildMelaForm(raga)]})),...derived];
+    datasetMessage = "";
+    get("index-count").textContent = countFormat.format(ragas.length);
+    get("index-note").hidden = false;
+    get("filter").disabled = false;
+  } catch (error) {
+    console.error("Raga Buddy dataset:",error);
+    datasetMessage = location.protocol === "file:"
+      ? "Open Raga Buddy on GitHub Pages or through a local web server to load ragas.json."
+      : "Could not load ragas.json. Check that it is next to index.html, then reload.";
+  }
+  renderSelection();
+  renderCatalogue();
+}
+
+function findMatches(pitches,scope,exactOnly) {
+  const matches = [];
+  const selected = [...pitches];
+  for (const raga of ragas) {
+    if (scope !== "all" && scope !== raga.type) continue;
+    raga.forms.forEach((form,index) => {
+      if (!selected.every(id => form.allowed.has(id))) return;
+      const missing = form.pitches.filter(id => !pitches.has(id));
+      if (!exactOnly || !missing.length) matches.push({raga,form,index,missing});
+    });
+  }
+  return matches.sort((a,b) => a.missing.length-b.missing.length ||
+    Number(b.raga === loadedRaga)-Number(a.raga === loadedRaga) ||
+    typeOrder[a.raga.type]-typeOrder[b.raga.type] || (a.raga.number ?? 0)-(b.raga.number ?? 0));
+}
+function textElement(tag,text,cssClass) {
+  const node = document.createElement(tag);
+  node.textContent = text;
+  if (cssClass) node.className = cssClass;
+  return node;
+}
+function labelledName(node,raga) {
+  if (raga.number) node.append(textElement("span",String(raga.number).padStart(2,"0"),"raga-number"));
+  node.append(document.createTextNode(raga.number ? " "+raga.name : raga.name));
+}
+function sourceDetail(form) {
+  const detail = textElement("p","","hint source-detail");
+  const isHistorical = form.source === "pravaham";
+  const link = textElement("a",isHistorical ? "Raga Pravaham · p. "+form.detail[0]+" · "+form.detail[1] :
+    form.source === "surabhi" ? "Raga Surabhi" : "Janya scale reference");
+  link.href = isHistorical ? historySource+"#page="+form.detail[0] : form.source === "surabhi" ? form.detail : wikiSource;
+  link.target = "_blank";
+  link.rel = "noopener";
+  detail.append(link);
+  if (isHistorical) detail.append(document.createTextNode(" · Pitch variants inferred from the listed parent"));
+  return detail;
+}
+function resultCard(raga,form,index,missing) {
+  const card = document.createElement("article");
+  card.className = missing.length ? "result" : "result exact";
+  const title = document.createElement("h3");
+  labelledName(title,raga);
+  const parent = melakarta[form.parent-1];
+  const category = raga.type === "mela" ? "Melakarta · "+raga.chakra+" chakra" :
+    (raga.type === "history" ? "Historical reading" : "Janya") +
+    (parent ? " · Listed under "+parent.number+" "+parent.name : "");
+  card.append(title,textElement("p",category+(raga.forms.length > 1 ? " · Form "+(index+1)+" of "+raga.forms.length : ""),"hint"));
+  const label = missing.length ? "Partial match · Add "+missing.map(id => prettyToken(form.spellings.get(id))).join("  ") : "Exact pitch-set match";
+  card.append(textElement("p",label,"hint match-kind"));
+  card.append(textElement("p","Ārohaṇam ↑  "+form.ascent.map(prettyToken).join("  "),"scale"),
+    textElement("p","Avarohaṇam ↓  "+form.descent.map(prettyToken).join("  "),"scale"));
+  if (form.optional.length) card.append(textElement("p","Anya swaras (optional) · "+form.optional.map(prettyToken).join("  "),"hint"));
+  if (form.source !== "mela") card.append(sourceDetail(form));
+  const controls = document.createElement("div");
+  controls.className = "controls";
+  for (const [label,sequence] of [["Play ascending",form.ascent],["Play descending",form.descent]]) {
+    const button = textElement("button",label);
+    button.type = "button";
+    button.addEventListener("click", () => playSequence(sequence.map(offset)));
+    controls.append(button);
+  }
+  const load = textElement("button","Load swaras");
+  load.type = "button";
+  load.addEventListener("click", () => loadScale(raga,form));
+  controls.append(load);
+  card.append(controls);
+  return card;
+}
+function loadScale(raga,form) {
+  stopPlayback();
+  loadedRaga = raga;
+  chosen.clear();
+  form.pitches.forEach(id => chosen.add(id));
+  if ([...form.ascent,...form.descent].includes("S'")) chosen.add(12);
+  renderSelection();
+  get("match-status").scrollIntoView({block:"nearest"});
+}
+function renderSelection() {
+  dropButtons.forEach((button,id) => {
+    const selected = String(chosen.has(id));
+    button.setAttribute("aria-pressed",selected);
+    keyButtons[id].setAttribute("aria-pressed",selected);
+  });
+  const chips = [...selectedPitches()].sort((a,b) => a-b).map(id => {
+    const label = id === 0 && chosen.has(12) ? (chosen.has(0) ? "S / Ṡ" : "Ṡ") : notes[id].label;
+    return textElement("span",label);
+  });
+  get("chosen").replaceChildren(...chips);
+  get("clear").disabled = !chosen.size;
+  get("play-selection").disabled = !chosen.size;
+  matchPage = 0;
+  renderMatches();
+  requestScene();
+}
+function updateMatchPager(total) {
+  const pages = Math.ceil(total/matchPageSize);
+  get("match-pager").hidden = pages < 2;
+  get("match-prev").disabled = matchPage < 1;
+  get("match-next").disabled = matchPage+1 >= pages;
+  get("match-page").textContent = pages ? (matchPage+1)+" of "+countFormat.format(pages) : "";
+}
+function renderMatches() {
+  const status = get("match-status");
+  const results = get("results");
+  if (datasetMessage) {
+    status.textContent = datasetMessage;
+    results.replaceChildren();
+    updateMatchPager(0);
+    return;
+  }
+  const pitches = selectedPitches();
+  const mode = get("match-mode").value;
+  const matches = pitches.size ? findMatches(pitches,get("match-scope").value,mode === "exact") : [];
+  const exact = new Set(matches.filter(match => !match.missing.length).map(match => match.raga)).size;
+  const names = new Set(matches.map(match => match.raga)).size;
+  if (!pitches.size) status.textContent = "Select a swara to find matching ragas.";
+  else if (!matches.length) status.textContent = mode === "exact" ? "No exact match in this view." : "No raga in this view contains every selected pitch.";
+  else {
+    const counts = countFormat.format(names)+" matching "+(names === 1 ? "raga" : "ragas")+" · "+countFormat.format(exact)+" exact";
+    status.textContent = matches.length === names ? counts : counts+" · "+countFormat.format(matches.length)+" scale forms";
+  }
+  const start = matchPage*matchPageSize;
+  results.replaceChildren(...matches.slice(start,start+matchPageSize).map(({raga,form,index,missing}) => resultCard(raga,form,index,missing)));
+  results.scrollTop = 0;
+  updateMatchPager(matches.length);
+}
+function renderCatalogue() {
+  if (datasetMessage) {
+    get("catalogue-status").textContent = datasetMessage;
+    return;
+  }
+  const query = get("filter").value.trim().toLowerCase();
+  const matches = melakarta.filter(raga => {
+    const tag = raga.searchText;
+    return query.split(/\s+/).every(term => /^\d+$/.test(term) ? Number(term) === raga.number : tag.includes(term));
+  });
+  get("catalogue-status").textContent = matches.length ? matches.length + " of 72 Melakartas" : "No Melakarta matches this search.";
+  get("catalogue").replaceChildren(...matches.map(raga => {
+    const button = document.createElement("button");
+    button.type = "button";
+    labelledName(button,raga);
+    button.title = raga.chakra+" chakra · "+raga.spelling.map(subscript).join(" ")+" Ṡ";
+    button.addEventListener("click", () => {
+      const entry = ragas[raga.number-1];
+      get("match-scope").value = "all";
+      loadScale(entry,entry.forms[0]);
+    });
+    return button;
+  }));
+}
+
+function stopPlayback() {
+  playbackVersion++;
+  clearTimeout(playbackClock);
+  retireBus(sequenceBus);
+  sequenceBus = null;
+  get("stop").disabled = true;
+}
+async function playSequence(sequence) {
+  stopPlayback();
+  const version = playbackVersion;
+  get("stop").disabled = false;
+  const ready = await startAudio();
+  if (version !== playbackVersion) return;
+  if (!ready) {
+    stopPlayback();
+    return;
+  }
+  sequenceBus = connectBus(master,1);
+  const beat = .54;
+  const start = audio.currentTime+.04;
+  sequence.forEach((id,index) => {
+    playLead(id,sequenceBus,start+index*beat,index === sequence.length-1 ? .85 : .48);
+  });
+  let index = 0;
+  function advance() {
+    if (version !== playbackVersion) return;
+    if (index === sequence.length) {
+      stopPlayback();
+      return;
+    }
+    lastNote = sequence[index];
+    showPitch(lastNote);
+    animateDrop(lastNote);
+    index++;
+    const next = start+(index === sequence.length ? (index-1)*beat+.88 : index*beat);
+    playbackClock = setTimeout(advance,Math.max(0,(next-audio.currentTime)*1000));
+  }
+  playbackClock = setTimeout(advance,40);
+}
+function changePitchSettings() {
+  stopPlayback();
+  refreshPitch();
+  restartDrone();
+}
+function changeOctave(direction) {
+  const next = Number(octave.value)+direction;
+  if (next < 0 || next > 8) return;
+  octave.value = String(next);
+  changePitchSettings();
+  audition(lastNote);
+}
+function stepPitch(direction) {
+  let next = displayNoteId(lastNote)+direction;
+  if (next < 0 || next > 12) {
+    const register = Number(octave.value)+direction;
+    if (register < 0 || register > 8) return;
+    octave.value = String(register);
+    next = direction > 0 ? 1 : 11;
+    changePitchSettings();
+  }
+  activate(next,false);
+}
+const shortcuts = new Map(notes.map(({key},id) => [key,id]));
+document.addEventListener("keydown", event => {
+  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey ||
+    event.target instanceof Element && event.target.closest("input, select, textarea, [contenteditable], summary")) return;
+  const key = event.key.toLowerCase();
+  if (shortcuts.has(key) && !event.shiftKey) {
+    event.preventDefault();
+    if (!event.repeat) activate(shortcuts.get(key),true);
+  } else if (key === "arrowup" || key === "arrowdown" || key === "[" || key === "]") {
+    event.preventDefault();
+    changeOctave(key === "arrowup" || key === "]" ? 1 : -1);
+  } else if (key === "arrowleft" || key === "arrowright") {
+    event.preventDefault();
+    stepPitch(key === "arrowright" ? 1 : -1);
+  } else if (key === "shift" && !event.repeat) {
+    const index = tonicCycle.indexOf(Number(tonic.value));
+    tonic.value = String(tonicCycle[(index+1)%tonicCycle.length]);
+    changePitchSettings();
+  } else if (key === " " && !event.target.matches("button:focus-visible, a:focus-visible")) {
+    event.preventDefault();
+    if (!event.repeat) activate(lastNote,false);
+  }
+});
+
+for (const element of [tonic,octave,tuning]) element.addEventListener("change",changePitchSettings);
+fine.addEventListener("change", () => {
+  fine.value = Math.max(-50,Math.min(50, Math.round(Number(fine.value)||0)));
+  changePitchSettings();
+});
+for (const element of [voice,ornament]) element.addEventListener("change",stopPlayback);
+drone.addEventListener("change", () => {
+  if (audio?.state === "running") restartDrone();
+  else if (drone.value !== "off") startAudio();
+});
+get("sound").addEventListener("click", () => activate(lastNote,false));
+get("clear").addEventListener("click", () => {
+  stopPlayback();
+  loadedRaga = null;
+  chosen.clear();
+  renderSelection();
+});
+get("play-selection").addEventListener("click",() => playSequence([...chosen].sort((a,b) => a-b)));
+get("stop").addEventListener("click",stopPlayback);
+get("filter").addEventListener("input",renderCatalogue);
+for (const id of ["match-scope","match-mode"]) {
+  get(id).addEventListener("change",() => {
+    matchPage = 0;
+    renderMatches();
+  });
+}
+get("match-prev").addEventListener("click",() => { matchPage--; renderMatches(); });
+get("match-next").addEventListener("click",() => { matchPage++; renderMatches(); });
+setupScene();
+refreshPitch();
+renderSelection();
+renderCatalogue();
+new ResizeObserver(drawPitchGraph).observe(graph);
+loadRagaData();
+</script>
+</body>
+</html>
